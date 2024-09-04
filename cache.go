@@ -1052,6 +1052,35 @@ func (c *cache) Items() map[string]Item {
 	return m
 }
 
+// Copies all unexpired items from the cache into a new map,
+// then deletes all items from the cache and returns the original map. This
+// approach ensures that no items are lost due to race conditions that could
+// occur if the operations of copying and deleting were performed separately.
+// For example, a race condition might occur if an item is added to the cache
+// between the calls to Items() and Flush(), resulting in data loss. By
+// combining these operations within a single lock, we maintain data integrity
+// during the cache cleanup process.
+func (c *cache) GetItemsAndFlush() map[string]Item {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	m := make(map[string]Item, len(c.items))
+	now := time.Now().UnixNano()
+	for k, v := range c.items {
+		// "Inlining" of Expired
+		if v.Expiration > 0 {
+			if now > v.Expiration {
+				continue
+			}
+		}
+		m[k] = v
+	}
+
+	c.items = map[string]Item{}
+
+	return m
+}
+
 // Returns the number of items in the cache. This may include items that have
 // expired, but have not yet been cleaned up.
 func (c *cache) ItemCount() int {
