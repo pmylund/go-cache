@@ -1769,3 +1769,68 @@ func TestGetWithExpiration(t *testing.T) {
 		t.Error("expiration for e is in the past")
 	}
 }
+
+func TestGetItemsAndFlush(t *testing.T) {
+	tc := New(DefaultExpiration, 0)
+	tc.Set("foo", "bar", DefaultExpiration)
+	tc.Set("baz", "yes", DefaultExpiration)
+	m := tc.GetItemsAndFlush()
+
+	// Assert get items was executed
+	x, found := m["foo"]
+	if !found {
+		t.Error("foo was not found in the map, but it should be returned")
+	}
+
+	if x.Expiration != int64(DefaultExpiration) {
+		t.Errorf("foo was found, but its expiration is %v, which is different than the setted one", x.Expiration)
+	}
+
+	v, ok := x.Object.(string)
+	if !ok {
+		t.Error("foo was found, but its value can't be parsed to string")
+	}
+
+	if v != "bar" {
+		t.Errorf("foo was found, but its actual value is %s, different than the original one", v)
+	}
+
+	x, found = m["baz"]
+	if !found {
+		t.Error("baz was not found in the map, but it should be returned")
+	}
+
+	if x.Expiration != int64(DefaultExpiration) {
+		t.Errorf("baz was found, but its expiration is %v, which is different than the setted one", x.Expiration)
+	}
+
+	v, ok = x.Object.(string)
+	if !ok {
+		t.Error("baz was found, but its value can't be parsed to string")
+	}
+
+	if v != "yes" {
+		t.Errorf("baz was found, but its actual value is %s, different than the original one", v)
+	}
+
+	x, found = m["baz"]
+	if !found {
+		t.Error("baz was not found in the map, but it should be returned")
+	}
+
+	// Assert flush was executed
+	y, found := tc.Get("foo")
+	if found {
+		t.Error("foo was found, but it should have been deleted")
+	}
+	if y != nil {
+		t.Error("x is not nil:", x)
+	}
+	y, found = tc.Get("baz")
+	if found {
+		t.Error("baz was found, but it should have been deleted")
+	}
+	if y != nil {
+		t.Error("x is not nil:", x)
+	}
+}
